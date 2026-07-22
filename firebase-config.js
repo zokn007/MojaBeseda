@@ -1,17 +1,8 @@
-/**
- * Firebase Console > Project settings > Your apps > Web app > SDK setup and configuration
- * Kopiraj samo vrednosti konfiguracijskega objekta med spodnja oklepaja.
- * Firebase Web config ni skrivni ključ; dostop do podatkov varujejo firestore.rules.
- */
-window.MOJABESEDA_FIREBASE_CONFIG = null;
-
-/* PRIMER – zamenjaj null s svojim objektom:
 window.MOJABESEDA_FIREBASE_CONFIG = {
-  apiKey: "...",
-  authDomain: "tvoj-projekt.firebaseapp.com",
-  projectId: "tvoj-projekt",
-  storageBucket: "tvoj-projekt.firebasestorage.app",
-  messagingSenderId: "...",
-  appId: "..."
+  apiKey: "AIzaSyC6a1sFJlMXnusj1KvcEvNNORSi_VfMXZU",
+  authDomain: "mojabeseda-ef82a.firebaseapp.com",
+  projectId: "mojabeseda-ef82a",
+  storageBucket: "mojabeseda-ef82a.firebasestorage.app",
+  messagingSenderId: "688349270012",
+  appId: "1:688349270012:web:9221a97bfc5da69dd92c79"
 };
-*/
