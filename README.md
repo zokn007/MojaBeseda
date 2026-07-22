@@ -1,4 +1,4 @@
-# MojaBeseda 1.4
+# MojaBeseda 1.4.1
 
 ## Glavne izboljšave
 - Google prijava uporablja varno pojavno okno brez problematičnega redirect postopka.
@@ -22,3 +22,9 @@ Po spremembi počakaj minuto, nato aplikacijo popolnoma zapri in znova odpri.
 
 ## Posodobitev
 Vsebino ZIP datoteke naloži v koren GitHub repozitorija in potrdi prepis datotek.
+
+
+## Popravek 1.4.1
+- Odpravljena napaka, zaradi katere se JavaScript modul ni naložil in noben gumb ni deloval.
+- Vsebina je združena v eno zagonsko datoteko.
+- Dodano samodejno čiščenje starega predpomnilnika.
