@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=1.4.1">
+  <link rel="stylesheet" href="styles.css?v=1.5.0">
   <title>MojaBeseda</title>
 </head>
 <body>
@@ -114,30 +114,71 @@
 
     <section id="profileView" class="view">
       <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Račun</p><h2>Profil</h2></div></div>
-      <div class="panel profile-panel">
-        <div class="profile-avatar">DG</div>
-        <h3 id="profileName">Gostujoči uporabnik</h3>
-        <p id="profileEmail" class="muted">Lokalni način</p>
-        <button id="googleLoginBtn" class="primary">Prijava z Googlom</button>
-        <button id="logoutBtn" class="secondary hidden">Odjava</button>
-        <p id="authHelp" class="muted auth-help">Prijava se odpre v varnem Googlovem oknu. Če ne deluje, preveri, ali je Google omogočen v Firebase Authentication.</p>
-      </div>
+      <section class="sync-section">
+        <h2 class="sync-heading">Google sinhronizacija</h2>
+        <article class="sync-card">
+          <div>
+            <p class="eyebrow">Firebase</p>
+            <h3>Sinhronizacija in varnostne kopije</h3>
+            <p class="sync-description">Prijavi se z istim Google računom na vseh napravah. Spremembe se nato samodejno prenašajo med telefonom, tablico in računalnikom.</p>
+          </div>
+
+          <div id="syncBanner" class="sync-banner">Podatki so shranjeni lokalno.</div>
+
+          <div class="sync-user">
+            <div id="syncUserAvatar" class="sync-user-avatar">DG</div>
+            <div>
+              <h4 id="profileName">Gostujoči uporabnik</h4>
+              <p id="profileEmail" class="muted">Lokalni način</p>
+            </div>
+          </div>
+
+          <div class="sync-info-grid">
+            <div class="sync-info-box">
+              <span>Zadnja sinhronizacija</span>
+              <b id="lastSync">—</b>
+            </div>
+            <div class="sync-info-box">
+              <span>Naprava</span>
+              <b id="deviceName">Spletni brskalnik</b>
+            </div>
+          </div>
+
+          <div class="backup-grid">
+            <button id="syncNowBtn" class="primary hidden">Sinhroniziraj zdaj</button>
+            <button id="restoreCloudBtn" class="secondary hidden">Obnovi iz oblaka</button>
+            <button id="exportBackupBtn" class="secondary">Izvozi kopijo</button>
+            <button id="importBackupBtn" class="secondary">Obnovi iz datoteke</button>
+          </div>
+
+          <input id="backupFileInput" class="hidden" type="file" accept="application/json,.json">
+
+          <button id="googleLoginBtn" class="primary sync-login">Prijava z Googlom</button>
+          <button id="logoutBtn" class="danger-btn hidden">Odjava</button>
+          <p id="authHelp" class="muted auth-help">Prijava se odpre v varnem Googlovem oknu.</p>
+        </article>
+      </section>
+
+      <section class="voice-settings panel">
+        <div>
+          <p class="eyebrow">Zvočno branje</p>
+          <h3>Sistemski glas</h3>
+          <p id="voiceStatus" class="muted">Preverjanje glasov …</p>
+        </div>
+        <button id="testVoiceBtn" class="secondary">▶ Preizkusi glas</button>
+      </section>
 
       <h2 class="about-heading">O aplikaciji</h2>
       <article class="about-card">
         <img src="icons/icon-192.png" alt="Ikona MojaBeseda">
         <div class="about-main">
           <h3>MojaBeseda by Davor Gričnik</h3>
-          <p>Verzija 1.4.1</p>
+          <p>Verzija 1.5.0</p>
         </div>
         <p class="about-credit">Designed &amp; Developed by Davor Gričnik © 2026</p>
       </article>
-
-      <article class="panel status-card">
-        <div><span>Google račun</span><b id="accountStatus">Neprijavljen</b></div>
-        <div><span>Sinhronizacija</span><b id="syncStatus">Lokalno</b></div>
-        <div><span>Zadnja sinhronizacija</span><b id="lastSync">—</b></div>
-      </article>
+    <span id="accountStatus" class="hidden">Neprijavljen</span>
+      <span id="syncStatus" class="hidden">Lokalno</span>
     </section>
   </main>
 
@@ -153,6 +194,6 @@
 <div id="toast" class="toast"></div>
 <dialog id="groupDialog"><form method="dialog" class="dialog-card"><h3>Nova skupina</h3><label>Ime skupine<input id="groupName" placeholder="npr. Moški zajtrk"></label><label>E-pošta povabljenega<input id="inviteEmail" type="email" placeholder="ime@gmail.com"></label><div class="dialog-actions"><button value="cancel" class="secondary">Prekliči</button><button id="createGroupConfirm" value="default" class="primary">Ustvari</button></div></form></dialog>
 <script src="firebase-config.js"></script>
-<script defer src="app.js?v=1.4.1"></script>
+<script defer src="app.js?v=1.5.0"></script>
 </body>
 </html>

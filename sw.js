@@ -1,5 +1,5 @@
-const CACHE='mojabeseda-1.4.1';
-const ASSETS=['./','./index.html','./styles.css?v=1.4.1','./app.js?v=1.4.1','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE='mojabeseda-1.5.0';
+const ASSETS=['./','./index.html','./styles.css?v=1.5.0','./app.js?v=1.5.0','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

@@ -1,4 +1,4 @@
-# MojaBeseda 1.4.1
+# MojaBeseda 1.5
 
 ## Glavne izboljšave
 - Google prijava uporablja varno pojavno okno brez problematičnega redirect postopka.
@@ -28,3 +28,13 @@ Vsebino ZIP datoteke naloži v koren GitHub repozitorija in potrdi prepis datote
 - Odpravljena napaka, zaradi katere se JavaScript modul ni naložil in noben gumb ni deloval.
 - Vsebina je združena v eno zagonsko datoteko.
 - Dodano samodejno čiščenje starega predpomnilnika.
+
+## Novosti 1.5
+- Nova kartica Google sinhronizacija v slogu MojaBeseda.
+- Ročna sinhronizacija v oblak.
+- Obnova podatkov iz oblaka.
+- Izvoz varnostne kopije v JSON.
+- Obnova varnostne kopije iz datoteke.
+- Prikaz uporabnika, naprave in zadnje sinhronizacije.
+- Popravljeno zvočno branje na iPhonu: predvajanje se sproži neposredno z uporabnikovim dotikom.
+- Gumb Preizkusi glas in prikaz izbranega sistemskega glasu.

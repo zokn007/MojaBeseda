@@ -111,10 +111,87 @@ function chooseTopic(){if($('#modeSelect').value==='random')return topics[Math.f
 function renderStudy(t){const n=Number($('#chapterCount').value);const refs=[...t.chapters,...t.links].slice(0,n);$('#studyResult').innerHTML=`<article class="study-output section-block"><div class="section-heading"><div><p class="eyebrow">${esc($('#translationSelect').value)}</p><h2>${esc(t.name)}</h2></div><button id="studySpeakBtn" class="secondary">▶ Poslušaj vse</button></div><p><b>${esc(t.verse)}</b> — ${esc(t.quote)}</p><h4>Izbrana poglavja</h4><div class="chapter-links">${refs.map(r=>`<button class="secondary open-bible" data-ref="${esc(r)}">📖 ${esc(r)}</button>`).join('')}</div><h4>Povzetek</h4><p>${esc(t.summary)}</p><h4>Kontekst</h4><p>${esc(t.context)}</p><h4>Pomen za nas danes</h4><p>${esc(t.today)}</p><h4>Vprašanja za razmislek</h4><ol>${t.questions.map(q=>`<li>${esc(q)}</li>`).join('')}</ol><div class="hero-actions"><button class="primary" id="studyToJournal">Zapiši svoje razmišljanje</button></div></article>`;$('#studyResult').scrollIntoView({behavior:'smooth'})}
 function bibleUrl(ref){return `https://www.biblija.net/biblija.cgi?m=${encodeURIComponent(ref)}&id13=1&pos=0&set=2&l=sl`}
 function openBible(ref){const w=window.open(bibleUrl(ref),'_blank','noopener,noreferrer');if(!w)location.href=bibleUrl(ref)}
-async function voicesReady(){let v=speechSynthesis.getVoices();if(v.length)return v;await new Promise(r=>{let done=false;const finish=()=>{if(!done){done=true;r()}};speechSynthesis.addEventListener('voiceschanged',finish,{once:true});setTimeout(finish,900)});return speechSynthesis.getVoices()}
-function splitSpeech(text,max=180){const sentences=text.replace(/\s+/g,' ').match(/[^.!?]+[.!?]?/g)||[text];const out=[];let part='';for(const s of sentences){if((part+s).length>max&&part){out.push(part.trim());part=''}part+=s}if(part.trim())out.push(part.trim());return out}
-async function speak(text){if(!('speechSynthesis'in window)){toast('Ta brskalnik ne podpira zvočnega branja.');return}speechSynthesis.cancel();const voices=await voicesReady();const voice=voices.find(v=>/^sl[-_]/i.test(v.lang))||voices.find(v=>/^hr[-_]/i.test(v.lang))||voices.find(v=>/^en[-_]/i.test(v.lang))||voices[0];const chunks=splitSpeech(text);let i=0;const next=()=>{if(i>=chunks.length){state.utterance=null;toast('Predvajanje je končano.');return}const u=new SpeechSynthesisUtterance(chunks[i++]);u.lang=voice?.lang||'sl-SI';if(voice)u.voice=voice;u.rate=.9;u.pitch=1;u.volume=1;u.onend=next;u.onerror=e=>{console.error('speech',e);if(e.error==='interrupted'||e.error==='canceled')return;toast('Glasovno branje na tej napravi ni na voljo. Poskusi v Safariju.')};state.utterance=u;speechSynthesis.speak(u)};next();toast(voice?`Predvaja glas: ${voice.name}`:'Predvajanje se je začelo.')}
-function stopSpeak(){if('speechSynthesis'in window)speechSynthesis.cancel();state.utterance=null;toast('Predvajanje ustavljeno.')}
+let cachedVoices=[];
+function refreshVoices(){
+  if(!('speechSynthesis' in window))return [];
+  const voices=window.speechSynthesis.getVoices()||[];
+  if(voices.length)cachedVoices=voices;
+  const voice=selectVoice(cachedVoices);
+  const status=$('#voiceStatus');
+  if(status){
+    status.textContent=voice
+      ? `Izbran glas: ${voice.name} (${voice.lang})`
+      : 'Slovenski glas ni najden. Naprava bo uporabila privzeti sistemski glas.';
+  }
+  return cachedVoices;
+}
+function selectVoice(voices){
+  return voices.find(v=>/^sl([-_]|$)/i.test(v.lang))
+    || voices.find(v=>/sloven/i.test(v.name))
+    || voices.find(v=>/^hr([-_]|$)/i.test(v.lang))
+    || voices.find(v=>/^sr([-_]|$)/i.test(v.lang))
+    || voices.find(v=>v.default)
+    || voices[0]
+    || null;
+}
+function splitSpeech(text,max=210){
+  const sentences=String(text).replace(/\s+/g,' ').match(/[^.!?]+[.!?]?/g)||[String(text)];
+  const out=[];let part='';
+  for(const sentence of sentences){
+    if((part+sentence).length>max&&part){out.push(part.trim());part=''}
+    part+=sentence;
+  }
+  if(part.trim())out.push(part.trim());
+  return out;
+}
+function speak(text){
+  if(!('speechSynthesis' in window)){
+    toast('Ta brskalnik ne podpira zvočnega branja.');
+    return;
+  }
+
+  // Pomembno za iPhone: speak() se izvede neposredno v istem dotiku gumba.
+  window.speechSynthesis.cancel();
+  const voices=refreshVoices();
+  const selected=selectVoice(voices);
+  const chunks=splitSpeech(text);
+  let index=0;
+
+  const playNext=()=>{
+    if(index>=chunks.length){
+      state.utterance=null;
+      toast('Predvajanje je končano.');
+      return;
+    }
+    const utterance=new SpeechSynthesisUtterance(chunks[index++]);
+    if(selected){
+      utterance.voice=selected;
+      utterance.lang=selected.lang;
+    }else{
+      utterance.lang='sl-SI';
+    }
+    utterance.rate=0.9;
+    utterance.pitch=1;
+    utterance.volume=1;
+    utterance.onend=playNext;
+    utterance.onerror=event=>{
+      console.error('Speech synthesis error:',event);
+      if(event.error==='canceled'||event.error==='interrupted')return;
+      toast('Glasovno branje ni uspelo. Preveri sistemski glas ali poskusi v Safariju.',5000);
+    };
+    state.utterance=utterance;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  playNext();
+  const voiceName=selected?.name||'privzeti sistemski glas';
+  toast(`Predvajanje: ${voiceName}`);
+}
+function stopSpeak(){
+  if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  state.utterance=null;
+  toast('Predvajanje ustavljeno.');
+}
 function renderKeywordResults(query=''){const q=query.trim().toLowerCase();if(!q){$('#keywordResults').innerHTML='';return}const found=topics.filter(t=>topicMatches(t,q)).slice(0,20);$('#keywordResults').innerHTML=found.length?found.map(t=>`<article class="list-card keyword-result"><div><b>${esc(t.verse)} · ${esc(t.name)}</b><p>${esc(t.summary)}</p></div><button class="text-btn use-keyword" data-topic="${t.id}">Odpri →</button></article>`).join(''):`<p class="empty-state">Ni zadetkov za »${esc(query)}«.</p>`}
 function pathState(){return store.get('pathProgress',{})}
 function isCompleted(p,progress){return (progress[p.id]||0)>=p.days.length}
@@ -123,12 +200,158 @@ function renderContinue(){const progress=pathState(),active=store.get('activePat
 function renderJournal(){const a=store.get('journal',[]);$('#journalEntries').innerHTML=a.length?a.map((e,i)=>`<article class="list-card"><div class="section-heading"><div><h3>${esc(e.title)}</h3><p class="muted">${new Date(e.date).toLocaleString('sl-SI')}</p></div><button class="icon-btn delete-journal" data-i="${i}">×</button></div><p>${esc(e.text).replace(/\n/g,'<br>')}</p>${e.prayer?`<p><b>Moja molitev:</b><br>${esc(e.prayer).replace(/\n/g,'<br>')}</p>`:''}</article>`).join(''):'<p class="empty-state">Še nimaš shranjenih zapisov.</p>'}
 function saveJournal(){const e={title:$('#journalTitle').value.trim()||'Moje razmišljanje',text:$('#journalText').value.trim(),prayer:$('#prayerText').value.trim(),date:new Date().toISOString()};if(!e.text&&!e.prayer){toast('Vnesi zapis ali molitev.');return}const a=store.get('journal',[]);a.unshift(e);store.set('journal',a);renderJournal();$('#journalTitle').value=$('#journalText').value=$('#prayerText').value='';syncUserData();toast('Zapis je shranjen.')}
 function renderGroups(){$('#groupsList').innerHTML='<p class="empty-state">Prijavi se z Googlom za sinhronizirane skupine.</p>'}
-function setSync(s){$('#syncStatus').textContent=s;$('#lastSync').textContent=new Date().toLocaleString('sl-SI')}
+function setSync(s){
+  const status=$('#syncStatus');
+  if(status)status.textContent=s;
+  const last=$('#lastSync');
+  if(last)last.textContent=new Date().toLocaleString('sl-SI');
+  const banner=$('#syncBanner');
+  if(banner){
+    const ok=/Sinhronizirano|sinhronizirani/i.test(s);
+    banner.textContent=ok?'Vsi podatki so sinhronizirani.':s;
+    banner.classList.toggle('success',ok);
+  }
+}
 async function loadFirebase(){const c=window.MOJABESEDA_FIREBASE_CONFIG;if(!c?.apiKey){setSync('Lokalno');return}try{const [a,au,d]=await Promise.all([import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)]);const app=a.initializeApp(c),auth=au.getAuth(app),db=d.getFirestore(app);await au.setPersistence(auth,au.browserLocalPersistence);state.firebase={auth,db,...au,...d};au.onAuthStateChanged(auth,onAuth);setSync('Firebase pripravljen')}catch(e){console.error(e);setSync('Napaka povezave');toast('Firebase povezava ni uspela.')}}
 async function googleLogin(){if(!state.firebase){toast('Firebase povezava ni pripravljena.');return}const {auth,GoogleAuthProvider,signInWithPopup}=state.firebase;const p=new GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});try{await signInWithPopup(auth,p)}catch(e){console.error(e);const messages={'auth/unauthorized-domain':'Ta spletni naslov ni dodan med Firebase Authorized domains.','auth/operation-not-allowed':'Google prijava v Firebase Authentication še ni omogočena.','auth/popup-blocked':'Brskalnik je blokiral prijavno okno. Odpri aplikacijo v Safariju.','auth/popup-closed-by-user':'Prijavno okno je bilo zaprto.'};toast(messages[e.code]||`Prijava ni uspela: ${e.code||'neznana napaka'}`,5000);$('#authHelp').textContent=messages[e.code]||'Preveri Firebase Authentication in dovoljene domene.'}}
-async function onAuth(u){state.user=u;$('#googleLoginBtn').classList.toggle('hidden',!!u);$('#logoutBtn').classList.toggle('hidden',!u);$('#profileName').textContent=u?.displayName||'Gostujoči uporabnik';$('#profileEmail').textContent=u?.email||'Lokalni način';$('#profileBtn').textContent=u?(u.displayName||'MB').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase():'DG';$('#accountStatus').textContent=u?'Prijavljen':'Neprijavljen';if(u){await syncUserData();await loadUserData();setSync('Sinhronizirano')}else setSync('Lokalno')}
+async function onAuth(u){
+  state.user=u;
+  $('#googleLoginBtn').classList.toggle('hidden',!!u);
+  $('#logoutBtn').classList.toggle('hidden',!u);
+  $('#syncNowBtn')?.classList.toggle('hidden',!u);
+  $('#restoreCloudBtn')?.classList.toggle('hidden',!u);
+  $('#profileName').textContent=u?.displayName||'Gostujoči uporabnik';
+  $('#profileEmail').textContent=u?.email||'Lokalni način';
+  const initials=u?(u.displayName||'MB').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase():'DG';
+  $('#profileBtn').textContent=initials;
+  const syncAvatar=$('#syncUserAvatar');
+  if(syncAvatar){
+    if(u?.photoURL){
+      syncAvatar.innerHTML=`<img src="${esc(u.photoURL)}" alt="">`;
+    }else{
+      syncAvatar.textContent=initials;
+    }
+  }
+  const accountStatus=$('#accountStatus');
+  if(accountStatus)accountStatus.textContent=u?'Prijavljen':'Neprijavljen';
+
+  if(u){
+    await syncUserData();
+    await loadUserData();
+    setSync('Sinhronizirano');
+  }else{
+    setSync('Podatki so shranjeni lokalno.');
+  }
+}
 async function syncUserData(){if(!state.user||!state.firebase)return;try{const {db,doc,setDoc,serverTimestamp}=state.firebase;await setDoc(doc(db,'users',state.user.uid),{uid:state.user.uid,email:state.user.email||'',displayName:state.user.displayName||'',pathProgress:pathState(),activePath:store.get('activePath',null),journal:store.get('journal',[]),updatedAt:serverTimestamp()},{merge:true})}catch(e){console.error(e);setSync('Napaka sinhronizacije')}}
 async function loadUserData(){if(!state.user||!state.firebase)return;try{const {db,doc,getDoc}=state.firebase,s=await getDoc(doc(db,'users',state.user.uid));if(s.exists()){const d=s.data();if(d.pathProgress)store.set('pathProgress',d.pathProgress);if(d.activePath)store.set('activePath',d.activePath);if(Array.isArray(d.journal))store.set('journal',d.journal);renderPaths();renderJournal()}}catch(e){console.error(e)}}
-function bind(){document.addEventListener('click',async e=>{const n=e.target.closest('[data-nav]');if(n&&!n.dataset.ref)nav(n.dataset.nav);if(e.target.closest('#profileBtn'))nav('profile');if(e.target.closest('#dailySpeakBtn'))speak(`${$('#dailyTitle').textContent}. ${$('#dailyVerse').textContent}. ${$('#dailyReference').textContent}`);if(e.target.closest('#dailyStopBtn'))stopSpeak();if(e.target.closest('#studySpeakBtn'))speak($('#studyResult').innerText);if(e.target.closest('#studyToJournal')){nav('journal');$('#journalTitle').value=`Razmišljanje: ${$('#studyResult h2')?.textContent||''}`};const ob=e.target.closest('.open-bible');if(ob)openBible(ob.dataset.ref);const cb=e.target.closest('#continueBtn');if(cb?.dataset.ref)openBible(cb.dataset.ref);const k=e.target.closest('.use-keyword');if(k){const t=topics.find(x=>x.id===k.dataset.topic);$('#topicSelect').value=t.id;nav('study');renderStudy(t)}const ps=e.target.closest('.path-step');if(ps){const p=paths.find(x=>x.id===ps.dataset.path),pr=pathState();pr[p.id]=Math.min((pr[p.id]||0)+1,p.days.length);store.set('pathProgress',pr);store.set('activePath',p.id);renderPaths();await syncUserData();toast(pr[p.id]>=p.days.length?'Pot je končana in prestavljena na konec.':'Napredek poti je shranjen.')}const pr=e.target.closest('.path-reset');if(pr){const x=pathState();x[pr.dataset.path]=0;store.set('pathProgress',x);renderPaths();await syncUserData()}const dj=e.target.closest('.delete-journal');if(dj){const a=store.get('journal',[]);a.splice(Number(dj.dataset.i),1);store.set('journal',a);renderJournal();await syncUserData()}});$('#themeToggle').onclick=()=>{document.documentElement.classList.toggle('light');store.set('theme',document.documentElement.classList.contains('light')?'light':'dark')};$('#chapterCount').oninput=e=>$('#chapterCountValue').textContent=e.target.value;$('#studyForm').onsubmit=e=>{e.preventDefault();renderStudy(chooseTopic())};$('#topicSearch').oninput=e=>renderTopics(e.target.value);$('#keywordSearchBtn').onclick=()=>renderKeywordResults($('#keywordSearch').value);$('#keywordSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();renderKeywordResults(e.target.value)}};$('#pathSearch').oninput=renderPaths;$('#pathFilter').onchange=renderPaths;$('#saveJournalBtn').onclick=saveJournal;$('#googleLoginBtn').onclick=googleLogin;$('#logoutBtn').onclick=()=>state.firebase?.signOut(state.firebase.auth);$('#addGroupBtn').onclick=()=>$('#groupDialog').showModal();$('#createGroupConfirm').onclick=e=>{e.preventDefault();toast('Skupine bodo na voljo po prijavi in potrjeni Firestore povezavi.');$('#groupDialog').close()}}
+
+function currentBackup(){
+  return {
+    app:'MojaBeseda',
+    version:'1.5.0',
+    exportedAt:new Date().toISOString(),
+    data:{
+      pathProgress:pathState(),
+      activePath:store.get('activePath',null),
+      journal:store.get('journal',[]),
+      theme:store.get('theme','dark')
+    }
+  };
+}
+function applyBackup(backup){
+  const data=backup?.data||backup;
+  if(!data||typeof data!=='object')throw new Error('Neveljavna varnostna kopija.');
+  if(data.pathProgress&&typeof data.pathProgress==='object')store.set('pathProgress',data.pathProgress);
+  if('activePath' in data)store.set('activePath',data.activePath);
+  if(Array.isArray(data.journal))store.set('journal',data.journal);
+  if(data.theme)store.set('theme',data.theme);
+  renderPaths();
+  renderJournal();
+}
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(currentBackup(),null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const date=new Date().toISOString().slice(0,10);
+  a.href=url;
+  a.download=`MojaBeseda-varnostna-kopija-${date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Varnostna kopija je pripravljena.');
+}
+async function importBackupFile(file){
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const backup=JSON.parse(text);
+    applyBackup(backup);
+    if(state.user)await syncUserData();
+    toast('Varnostna kopija je obnovljena.');
+  }catch(error){
+    console.error(error);
+    toast('Datoteka ni veljavna varnostna kopija MojaBeseda.',5000);
+  }finally{
+    $('#backupFileInput').value='';
+  }
+}
+async function syncNow(){
+  if(!state.user){toast('Najprej se prijavi z Googlom.');return}
+  await syncUserData();
+  setSync('Sinhronizirano');
+  toast('Podatki so poslani v oblak.');
+}
+async function restoreFromCloud(){
+  if(!state.user||!state.firebase){toast('Najprej se prijavi z Googlom.');return}
+  if(!confirm('Lokalne podatke zamenjam s podatki iz oblaka?'))return;
+  try{
+    const {db,doc,getDoc}=state.firebase;
+    const snapshot=await getDoc(doc(db,'users',state.user.uid));
+    if(!snapshot.exists()){toast('V oblaku še ni varnostne kopije.');return}
+    const data=snapshot.data();
+    applyBackup({
+      pathProgress:data.pathProgress||{},
+      activePath:data.activePath||null,
+      journal:Array.isArray(data.journal)?data.journal:[]
+    });
+    setSync('Sinhronizirano');
+    toast('Podatki so obnovljeni iz oblaka.');
+  }catch(error){
+    console.error(error);
+    toast('Obnova iz oblaka ni uspela.',5000);
+  }
+}
+function detectDevice(){
+  const ua=navigator.userAgent||'';
+  if(/iPhone/i.test(ua))return 'iPhone';
+  if(/iPad/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1))return 'iPad';
+  if(/Android/i.test(ua))return 'Android';
+  if(/Macintosh|Mac OS X/i.test(ua))return 'Mac';
+  if(/Windows/i.test(ua))return 'Windows';
+  return 'Spletni brskalnik';
+}
+
+function bind(){document.addEventListener('click',async e=>{const n=e.target.closest('[data-nav]');if(n&&!n.dataset.ref)nav(n.dataset.nav);if(e.target.closest('#profileBtn'))nav('profile');if(e.target.closest('#dailySpeakBtn'))speak(`${$('#dailyTitle').textContent}. ${$('#dailyVerse').textContent}. ${$('#dailyReference').textContent}`);if(e.target.closest('#dailyStopBtn'))stopSpeak();if(e.target.closest('#studySpeakBtn'))speak($('#studyResult').innerText);if(e.target.closest('#studyToJournal')){nav('journal');$('#journalTitle').value=`Razmišljanje: ${$('#studyResult h2')?.textContent||''}`};const ob=e.target.closest('.open-bible');if(ob)openBible(ob.dataset.ref);const cb=e.target.closest('#continueBtn');if(cb?.dataset.ref)openBible(cb.dataset.ref);const k=e.target.closest('.use-keyword');if(k){const t=topics.find(x=>x.id===k.dataset.topic);$('#topicSelect').value=t.id;nav('study');renderStudy(t)}const ps=e.target.closest('.path-step');if(ps){const p=paths.find(x=>x.id===ps.dataset.path),pr=pathState();pr[p.id]=Math.min((pr[p.id]||0)+1,p.days.length);store.set('pathProgress',pr);store.set('activePath',p.id);renderPaths();await syncUserData();toast(pr[p.id]>=p.days.length?'Pot je končana in prestavljena na konec.':'Napredek poti je shranjen.')}const pr=e.target.closest('.path-reset');if(pr){const x=pathState();x[pr.dataset.path]=0;store.set('pathProgress',x);renderPaths();await syncUserData()}const dj=e.target.closest('.delete-journal');if(dj){const a=store.get('journal',[]);a.splice(Number(dj.dataset.i),1);store.set('journal',a);renderJournal();await syncUserData()}});$('#themeToggle').onclick=()=>{document.documentElement.classList.toggle('light');store.set('theme',document.documentElement.classList.contains('light')?'light':'dark')};$('#chapterCount').oninput=e=>$('#chapterCountValue').textContent=e.target.value;$('#studyForm').onsubmit=e=>{e.preventDefault();renderStudy(chooseTopic())};$('#topicSearch').oninput=e=>renderTopics(e.target.value);$('#keywordSearchBtn').onclick=()=>renderKeywordResults($('#keywordSearch').value);$('#keywordSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();renderKeywordResults(e.target.value)}};$('#pathSearch').oninput=renderPaths;$('#pathFilter').onchange=renderPaths;$('#saveJournalBtn').onclick=saveJournal;
+  $('#googleLoginBtn').onclick=googleLogin;
+  $('#syncNowBtn').onclick=syncNow;
+  $('#restoreCloudBtn').onclick=restoreFromCloud;
+  $('#exportBackupBtn').onclick=exportBackup;
+  $('#importBackupBtn').onclick=()=>$('#backupFileInput').click();
+  $('#backupFileInput').onchange=e=>importBackupFile(e.target.files?.[0]);
+  $('#testVoiceBtn').onclick=()=>speak('To je preizkus zvočnega branja v aplikaciji MojaBeseda.');$('#logoutBtn').onclick=()=>state.firebase?.signOut(state.firebase.auth);$('#addGroupBtn').onclick=()=>$('#groupDialog').showModal();$('#createGroupConfirm').onclick=e=>{e.preventDefault();toast('Skupine bodo na voljo po prijavi in potrjeni Firestore povezavi.');$('#groupDialog').close()}}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);
-initTheme();renderTopics();renderPaths();renderJournal();renderGroups();bind();loadFirebase();
+initTheme();
+renderTopics();
+renderPaths();
+renderJournal();
+renderGroups();
+bind();
+const device=$('#deviceName');
+if(device)device.textContent=detectDevice();
+refreshVoices();
+if('speechSynthesis' in window){
+  window.speechSynthesis.onvoiceschanged=refreshVoices;
+}
+loadFirebase();
