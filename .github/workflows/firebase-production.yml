@@ -1,0 +1,49 @@
+name: Firebase production deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f firebase.json
+          test -f firestore.rules
+          test -f firestore.indexes.json
+          test -f firebase-config.js
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOJABESEDA }}
+          create_credentials_file: true
+          export_environment_variables: true
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Deploy Hosting and Firestore
+        run: firebase deploy --project mojabeseda-ef82a --only hosting,firestore --non-interactive
