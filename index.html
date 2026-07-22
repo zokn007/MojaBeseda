@@ -66,7 +66,10 @@
     <section id="studyView" class="view">
       <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Ustvari</p><h2>Novo razmišljanje</h2></div></div>
       <form id="studyForm" class="panel form-grid">
-        <label>Tema<select id="topicSelect"></select></label>
+        <label>Poišči temo
+  <input id="topicSearch" placeholder="npr. molitev, družina, vera …">
+</label>
+<label>Tema<select id="topicSelect"></select></label>
         <label>Način<select id="modeSelect"><option value="topic">Izbrana tema</option><option value="random">Preseneti me</option><option value="covenant">Povezava med zavezama</option></select></label>
         <label>Število poglavij<input id="chapterCount" type="range" min="1" max="5" value="2"><span id="chapterCountValue" class="range-value">2</span></label>
         <label>Prevod<select id="translationSelect"><option>SSP</option><option>EKU</option><option>CHR</option></select></label>
@@ -79,7 +82,18 @@
 
     <section id="pathsView" class="view">
       <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Vodeno branje</p><h2>Moje poti</h2></div></div>
-      <div id="pathsList" class="stack"></div>
+      <article class="panel library-tools">
+  <div class="search-row">
+    <input id="pathSearch" placeholder="Poišči med več sto potmi …">
+    <select id="pathFilter">
+      <option value="active">Najprej aktivne</option>
+      <option value="all">Vse poti</option>
+      <option value="completed">Končane</option>
+    </select>
+  </div>
+  <p id="pathCount" class="muted"></p>
+</article>
+<div id="pathsList" class="stack section-block"></div>
     </section>
 
     <section id="groupsView" class="view">
@@ -106,6 +120,7 @@
         <p id="profileEmail" class="muted">Lokalni način</p>
         <button id="googleLoginBtn" class="primary">Prijava z Googlom</button>
         <button id="logoutBtn" class="secondary hidden">Odjava</button>
+        <p id="authHelp" class="muted auth-help">Prijava se odpre v varnem Googlovem oknu. Če ne deluje, preveri, ali je Google omogočen v Firebase Authentication.</p>
       </div>
 
       <h2 class="about-heading">O aplikaciji</h2>
@@ -113,7 +128,7 @@
         <img src="icons/icon-192.png" alt="Ikona MojaBeseda">
         <div class="about-main">
           <h3>MojaBeseda by Davor Gričnik</h3>
-          <p>Verzija 1.3.0</p>
+          <p>Verzija 1.4.0</p>
         </div>
         <p class="about-credit">Designed &amp; Developed by Davor Gričnik © 2026</p>
       </article>
