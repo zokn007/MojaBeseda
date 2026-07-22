@@ -1,1 +1,23 @@
-{"name":"MojaBeseda","short_name":"MojaBeseda","description":"Osebno in skupinsko svetopisemsko razmišljanje","start_url":"./","display":"standalone","background_color":"#0d0f10","theme_color":"#111315","lang":"sl","icons":[{"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "name": "MojaBeseda",
+  "short_name": "MojaBeseda",
+  "description": "Osebno in skupinsko svetopisemsko razmišljanje.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#08111f",
+  "theme_color": "#08111f",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

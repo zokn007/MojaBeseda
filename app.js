@@ -1,196 +1,33 @@
-import { topics, paths } from './content.js';
+import {topics,paths} from './content.js';
+const FIREBASE_VERSION='12.16.0';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const state={user:null,firebase:null};
+const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+function toast(m){const e=$('#toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2500)}
+function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function nav(n){$$('.view').forEach(v=>v.classList.remove('active'));$(`#${n}View`)?.classList.add('active');$$('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===n));window.scrollTo({top:0,behavior:'smooth'})}
+function initTheme(){if(store.get('theme','dark')==='light')document.documentElement.classList.add('light')}
+function renderTopics(){$('#topicSelect').innerHTML=topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+function chooseTopic(){if($('#modeSelect').value==='random')return topics[Math.floor(Math.random()*topics.length)];return topics.find(t=>t.id===$('#topicSelect').value)||topics[0]}
+function renderStudy(t){const n=Number($('#chapterCount').value);const refs=[...t.chapters,...t.links].slice(0,n);$('#studyResult').innerHTML=`<article class="study-output section-block"><div class="section-heading"><div><p class="eyebrow">${esc($('#translationSelect').value)}</p><h2>${esc(t.name)}</h2></div><button id="studySpeakBtn" class="secondary">▶ Poslušaj vse</button></div><p><b>${esc(t.verse)}</b> — ${esc(t.quote)}</p><h4>Izbrana poglavja</h4><p>${refs.map(esc).join(' · ')}</p><h4>Povzetek</h4><p>${esc(t.summary)}</p><h4>Kontekst</h4><p>${esc(t.context)}</p><h4>Pomen za nas danes</h4><p>${esc(t.today)}</p><h4>Vprašanja za razmislek</h4><ol>${t.questions.map(q=>`<li>${esc(q)}</li>`).join('')}</ol><div class="hero-actions"><button class="primary" id="studyToJournal">Zapiši svoje razmišljanje</button></div></article>`;$('#studyResult').scrollIntoView({behavior:'smooth'})}
+function getVoice(){const vs=speechSynthesis.getVoices();return vs.find(v=>v.lang?.toLowerCase().startsWith('sl'))||vs.find(v=>v.lang?.toLowerCase().startsWith('hr'))||null}
+function speak(text){if(!('speechSynthesis'in window)){toast('Naprava ne podpira zvočnega branja.');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='sl-SI';u.voice=getVoice();u.rate=.92;u.onstart=()=>toast('Predvajanje se je začelo.');u.onerror=()=>toast('Predvajanje ni uspelo. Preveri slovenski glas v sistemu.');speechSynthesis.speak(u)}
+function stopSpeak(){if('speechSynthesis'in window)speechSynthesis.cancel()}
+speechSynthesis?.getVoices(); if('speechSynthesis'in window)speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
 
-const FIREBASE_VERSION = '12.16.0';
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const state = { user:null, view:'home', firebase:null, unsubscribers:[], activeGroup:null };
-const store = {
-  get:(k,d)=>{ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
-};
-
-function toast(message, timeout=2500){
-  const el=$('#toast'); el.textContent=message; el.classList.add('show');
-  clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.classList.remove('show'),timeout);
-}
-function escapeHtml(value=''){ return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function formatDate(value){
-  const d=value?.toDate ? value.toDate() : new Date(value);
-  return Number.isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('sl-SI',{dateStyle:'medium',timeStyle:'short'}).format(d);
-}
-function nav(name){
-  state.view=name; $$('.view').forEach(v=>v.classList.remove('active')); $(`#${name}View`)?.classList.add('active');
-  $$('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===name)); window.scrollTo({top:0,behavior:'smooth'});
-}
-function clearSubscriptions(){ state.unsubscribers.forEach(fn=>{try{fn()}catch{}}); state.unsubscribers=[]; }
-function initTheme(){ if(store.get('theme','dark')==='light') document.documentElement.classList.add('light'); }
-function renderTopics(){
-  const options=topics.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-  $('#topicSelect').innerHTML=options; $('#notificationKeyword').innerHTML=options;
-  $('#keywordChips').innerHTML=topics.slice(0,6).map((t,i)=>`<button class="chip ${i===0?'active':''}" data-keyword="${t.id}">${t.name}</button>`).join('');
-}
-function renderPaths(){
-  const progress=store.get('pathProgress',{});
-  $('#pathsList').innerHTML=paths.map((p,i)=>{
-    const done=progress[i]||0, pct=Math.min(100,Math.round(done/p.days*100));
-    return `<article class="list-card"><div class="section-heading"><div><h3>${p.title}</h3><p class="muted">${p.desc}</p></div><span class="pill">${p.days} dni</span></div><div class="progress"><span style="width:${pct}%"></span></div><button class="text-btn" data-path-start="${i}">${done?'Nadaljuj':'Začni pot'} →</button></article>`;
-  }).join('');
-}
-function chooseTopic(){
-  const mode=$('#modeSelect').value, testament=$('#testamentSelect').value;
-  let pool=[...topics];
-  if(testament==='old') pool=pool.filter(t=>t.chapters.some(c=>/^(1|2|3|4|5) Mojzesova|Psalm|Izaija|Žalostinke|Habakuk/.test(c)));
-  if(testament==='new') pool=pool.filter(t=>t.chapters.some(c=>/Janez|Rimljanom|Korinčanom|Hebrejcem|Jakob|Filipljanom|Matej|Filemonu/.test(c)));
-  if(mode==='random'||mode==='covenant') return pool[Math.floor(Math.random()*pool.length)]||topics[0];
-  return topics.find(t=>t.id===$('#topicSelect').value)||topics[0];
-}
-function renderStudy(topic){
-  const count=Number($('#chapterCount').value), chapters=[...topic.chapters];
-  while(chapters.length<count) chapters.push(topic.links[(chapters.length-topic.chapters.length)%topic.links.length]);
-  const depth=$('#depthSelect').value;
-  const extras=depth==='sermon' ? `<h4>Predlog zgradbe</h4><ol><li>Svetopisemski temelj in kontekst</li><li>Jedro sporočila v izbranih poglavjih</li><li>Povezava z evangelijem</li><li>Pomen za naše življenje danes</li></ol>` : depth==='group' ? `<h4>Za pogovor v skupini</h4><p>Vsak naj izbere eno vrstico, ki ga je posebej nagovorila, in pojasni zakaj.</p>` : '';
-  $('#studyResult').innerHTML=`<article class="study-output panel"><div class="section-heading"><div><p class="eyebrow">${escapeHtml($('#translationSelect').value)} · ${count} ${count===1?'poglavje':'poglavji'}</p><h2>${escapeHtml(topic.name)}</h2></div><button class="secondary speak-all">▶ Poslušaj vse</button></div><div class="chapter-tags">${chapters.slice(0,count).map(c=>`<span>${escapeHtml(c)}</span>`).join('')}</div><h4>Povzetek</h4><p>${escapeHtml(topic.summary)}</p><h4>Zgodovinski in svetopisemski kontekst</h4><p>${escapeHtml(topic.context)}</p><h4>Povezane vrstice</h4><ul>${topic.links.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul><h4>Pomen za nas danes</h4><p>${escapeHtml(topic.today)}</p><h4>Vprašanja za razmislek</h4><ol>${topic.questions.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>${extras}<div class="hero-actions"><button class="primary save-study-note">Zapiši svoje razmišljanje</button><button class="secondary share-study">Deli v skupino</button></div></article>`;
-  $('#studyResult').scrollIntoView({behavior:'smooth'});
-}
-
-function speak(text){
-  if(!('speechSynthesis' in window)){ toast('Ta naprava ne podpira glasovnega branja.'); return; }
-  speechSynthesis.cancel(); const utterance=new SpeechSynthesisUtterance(text); utterance.lang='sl-SI';
-  const voices=speechSynthesis.getVoices(); utterance.voice=voices.find(v=>v.lang?.toLowerCase().startsWith('sl'))||null;
-  utterance.rate=Number(store.get('speechRate',0.95)); speechSynthesis.speak(utterance); toast('Predvajanje se je začelo.');
-}
-
-async function loadFirebase(){
-  const config=window.MOJABESEDA_FIREBASE_CONFIG;
-  if(!config?.apiKey || !config?.projectId){ setSyncStatus('Lokalno – dodaj Firebase config'); return null; }
-  try{
-    const [appMod,authMod,dbMod]=await Promise.all([
-      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
-      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
-    ]);
-    const app=appMod.initializeApp(config), auth=authMod.getAuth(app), db=dbMod.getFirestore(app);
-    try { await dbMod.enableMultiTabIndexedDbPersistence(db); } catch(err){ console.info('Firestore persistence:',err.code); }
-    state.firebase={app,auth,db,...authMod,...dbMod};
-    authMod.onAuthStateChanged(auth,onAuthChanged);
-    setSyncStatus('Firebase pripravljen');
-    return state.firebase;
-  }catch(error){ console.error(error); setSyncStatus('Napaka povezave'); toast('Firebase se ni mogel povezati. Preveri konfiguracijo.'); return null; }
-}
-function setSyncStatus(text){ $('#syncStatus').textContent=text; }
-async function onAuthChanged(user){
-  clearSubscriptions(); state.user=user||null;
-  $('#googleLoginBtn').classList.toggle('hidden',!!user); $('#logoutBtn').classList.toggle('hidden',!user);
-  if(!user){ $('#profileName').textContent='Gostujoči uporabnik'; $('#profileEmail').textContent='Lokalni način'; $('#profileBtn').textContent='DG'; setSyncStatus(state.firebase?'Odjavljen':'Lokalno'); renderJournal(); renderGroups(); return; }
-  $('#profileName').textContent=user.displayName||'Uporabnik'; $('#profileEmail').textContent=user.email||''; $('#profileBtn').textContent=(user.displayName||'MB').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase(); setSyncStatus('Sinhronizirano');
-  const {db,doc,setDoc,serverTimestamp}=state.firebase;
-  await setDoc(doc(db,'users',user.uid),{uid:user.uid,displayName:user.displayName||'',email:user.email||'',photoURL:user.photoURL||'',lastLoginAt:serverTimestamp(),active:true},{merge:true});
-  subscribeUserData(); subscribeJournal(); subscribeGroups();
-}
-async function googleLogin(){
-  if(!state.firebase){ toast('Najprej vnesi Firebase konfiguracijo.'); return; }
-  const {auth,GoogleAuthProvider,signInWithPopup,signInWithRedirect}=state.firebase;
-  const provider=new GoogleAuthProvider(); provider.setCustomParameters({prompt:'select_account'});
-  try{
-    const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if(mobile) await signInWithRedirect(auth,provider); else await signInWithPopup(auth,provider);
-  }catch(error){ console.error(error); toast(error.code==='auth/popup-blocked'?'Brskalnik je blokiral prijavno okno.':'Prijava ni uspela.'); }
-}
-async function logout(){ if(state.firebase) await state.firebase.signOut(state.firebase.auth); }
-function subscribeUserData(){
-  const {db,doc,onSnapshot}=state.firebase;
-  state.unsubscribers.push(onSnapshot(doc(db,'users',state.user.uid),snap=>{
-    const data=snap.data()||{}; const n=data.notifications||store.get('notifications',{});
-    if(n.keyword) $('#notificationKeyword').value=n.keyword; if(n.time) $('#notificationTime').value=n.time; $('#notificationEnabled').checked=n.enabled!==false;
-  }));
-}
-
-function renderJournal(entries=null){
-  const list=entries||store.get('journal',[]);
-  $('#journalEntries').innerHTML=list.length?list.map(e=>`<article class="list-card"><div class="section-heading"><div><h3>${escapeHtml(e.title||'Brez naslova')}</h3><p class="muted">${formatDate(e.createdAt||e.date)}</p></div>${e.id?`<button class="icon-btn delete-journal" data-id="${e.id}" aria-label="Izbriši">×</button>`:''}</div><p>${escapeHtml(e.text||'').replace(/\n/g,'<br>')}</p>${e.prayer?`<details><summary>Moja molitev (zasebno)</summary><p>${escapeHtml(e.prayer).replace(/\n/g,'<br>')}</p></details>`:''}</article>`).join(''):'<p class="empty-state">Še nimaš shranjenih zapisov.</p>';
-}
-function subscribeJournal(){
-  const {db,collection,query,where,orderBy,onSnapshot}=state.firebase;
-  const q=query(collection(db,'journalEntries'),where('ownerId','==',state.user.uid),orderBy('createdAt','desc'));
-  state.unsubscribers.push(onSnapshot(q,snap=>renderJournal(snap.docs.map(d=>({id:d.id,...d.data()}))),err=>{console.error(err);toast('Za dnevnik je morda treba ustvariti Firestore indeks.');}));
-}
-async function saveJournal(){
-  const entry={title:$('#journalTitle').value.trim()||'Moje razmišljanje',text:$('#journalText').value.trim(),prayer:$('#prayerText').value.trim()};
-  if(!entry.text&&!entry.prayer){ toast('Vnesi zapis ali molitev.'); return; }
-  if(state.user&&state.firebase){ const {db,collection,addDoc,serverTimestamp}=state.firebase; await addDoc(collection(db,'journalEntries'),{...entry,ownerId:state.user.uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}); toast('Zapis je sinhroniziran.'); }
-  else { const list=store.get('journal',[]); list.unshift({...entry,date:new Date().toISOString()}); store.set('journal',list); renderJournal(); toast('Zapis je shranjen lokalno.'); }
-  $('#journalTitle').value=$('#journalText').value=$('#prayerText').value='';
-}
-async function deleteJournal(id){ if(!state.user||!state.firebase)return; if(!confirm('Izbrišem ta zapis?'))return; const {db,doc,deleteDoc}=state.firebase; await deleteDoc(doc(db,'journalEntries',id)); }
-
-function renderGroups(groups=null){
-  const list=groups||store.get('groups',[]);
-  $('#groupsList').innerHTML=list.length?list.map(g=>`<article class="list-card group-card" data-group-id="${g.id||''}"><div class="section-heading"><div><h3>${escapeHtml(g.name)}</h3><p class="muted">${escapeHtml(g.topic||'Skupno razmišljanje')}</p></div><span class="pill">${g.memberIds?.length||g.members||1} članov</span></div><button class="text-btn open-group" data-group-id="${g.id||''}">Odpri skupino →</button></article>`).join(''):'<p class="empty-state">Še nisi član nobene skupine.</p>';
-}
-function subscribeGroups(){
-  const {db,collection,query,where,onSnapshot}=state.firebase;
-  const q=query(collection(db,'groups'),where('memberIds','array-contains',state.user.uid));
-  state.unsubscribers.push(onSnapshot(q,snap=>renderGroups(snap.docs.map(d=>({id:d.id,...d.data()}))),console.error));
-}
-async function createGroup(){
-  const name=$('#groupName').value.trim(), inviteEmail=$('#inviteEmail').value.trim();
-  if(!name){toast('Vnesi ime skupine.');return;}
-  if(!state.user||!state.firebase){ const groups=store.get('groups',[]);groups.unshift({name,members:1,topic:'Še ni izbrano'});store.set('groups',groups);renderGroups();$('#groupDialog').close();toast('Skupina je shranjena lokalno.');return; }
-  const {db,collection,query,where,getDocs,addDoc,serverTimestamp}=state.firebase;
-  const memberIds=[state.user.uid], memberNames={[state.user.uid]:state.user.displayName||state.user.email};
-  if(inviteEmail){
-    const found=await getDocs(query(collection(db,'users'),where('email','==',inviteEmail)));
-    if(found.empty){toast('Ta oseba se mora najprej prijaviti v MojaBeseda.');return;}
-    const invited=found.docs[0].data(); memberIds.push(invited.uid); memberNames[invited.uid]=invited.displayName||invited.email;
-  }
-  await addDoc(collection(db,'groups'),{name,topic:'Skupno razmišljanje',ownerId:state.user.uid,memberIds:[...new Set(memberIds)],memberNames,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-  $('#groupName').value=$('#inviteEmail').value=''; $('#groupDialog').close(); toast('Skupina je ustvarjena in sinhronizirana.');
-}
-async function openGroup(groupId){
-  if(!state.user||!state.firebase){toast('Za skupinska razmišljanja se prijavi z Googlom.');return;}
-  state.activeGroup=groupId; const {db,doc,getDoc,collection,query,orderBy,onSnapshot}=state.firebase;
-  const groupSnap=await getDoc(doc(db,'groups',groupId)); if(!groupSnap.exists())return;
-  const g=groupSnap.data(); $('#groupDetailTitle').textContent=g.name; $('#groupDetailMembers').textContent=Object.values(g.memberNames||{}).join(', ');
-  $('#groupDetailDialog').showModal();
-  const q=query(collection(db,'groups',groupId,'reflections'),orderBy('createdAt','desc'));
-  if(state.groupUnsub)state.groupUnsub(); state.groupUnsub=onSnapshot(q,snap=>{
-    $('#groupReflections').innerHTML=snap.empty?'<p class="empty-state">Še ni skupnih zapisov.</p>':snap.docs.map(d=>{const r=d.data();return `<article class="list-card"><div class="section-heading"><b>${escapeHtml(r.authorName||'Član')}</b><span class="muted">${formatDate(r.createdAt)}</span></div><p>${escapeHtml(r.text).replace(/\n/g,'<br>')}</p></article>`}).join('');
-  });
-}
-async function postGroupReflection(){
-  const text=$('#groupReflectionText').value.trim(); if(!text||!state.activeGroup)return;
-  const {db,collection,addDoc,serverTimestamp}=state.firebase;
-  await addDoc(collection(db,'groups',state.activeGroup,'reflections'),{text,authorId:state.user.uid,authorName:state.user.displayName||state.user.email,createdAt:serverTimestamp()});
-  $('#groupReflectionText').value=''; toast('Razmišljanje je objavljeno skupini.');
-}
-async function shareStudy(){
-  if(!state.user){toast('Za deljenje se prijavi z Googlom.');return;} nav('groups'); toast('Odpri skupino in prilepi ali napiši svoje razmišljanje.');
-}
-async function saveSettings(){
-  const notifications={keyword:$('#notificationKeyword').value,time:$('#notificationTime').value,enabled:$('#notificationEnabled').checked}; store.set('notifications',notifications);
-  if(state.user&&state.firebase){const {db,doc,setDoc,serverTimestamp}=state.firebase;await setDoc(doc(db,'users',state.user.uid),{notifications,updatedAt:serverTimestamp()},{merge:true});}
-  if(notifications.enabled&&'Notification'in window&&Notification.permission==='default')await Notification.requestPermission(); toast('Nastavitve so shranjene in sinhronizirane.');
-}
-
-function bind(){
-  document.addEventListener('click',async e=>{
-    const navEl=e.target.closest('[data-nav]'); if(navEl)nav(navEl.dataset.nav);
-    if(e.target.closest('[data-action="new-study"]'))nav('study'); if(e.target.closest('#profileBtn'))nav('profile');
-    const s=e.target.closest('.speak-btn'); if(s)speak($(s.dataset.speakTarget)?.textContent||''); if(e.target.closest('.speak-all'))speak($('#studyResult').innerText);
-    const keyword=e.target.closest('[data-keyword]'); if(keyword){$$('[data-keyword]').forEach(x=>x.classList.remove('active'));keyword.classList.add('active');store.set('dailyKeyword',keyword.dataset.keyword);toast('Ključna beseda je shranjena.');}
-    const path=e.target.closest('[data-path-start]'); if(path){const p=store.get('pathProgress',{});p[path.dataset.pathStart]=(p[path.dataset.pathStart]||0)+1;store.set('pathProgress',p);renderPaths();toast('Napredek bralne poti je shranjen.');}
-    if(e.target.closest('.save-study-note')){nav('journal');$('#journalTitle').value=`Razmišljanje: ${$('#studyResult h2')?.textContent||''}`;toast('Pripravljeno za tvoj osebni zapis.');}
-    if(e.target.closest('.share-study'))shareStudy();
-    const del=e.target.closest('.delete-journal');if(del)deleteJournal(del.dataset.id);
-    const group=e.target.closest('.open-group');if(group)openGroup(group.dataset.groupId);
-  });
-  $('#themeToggle').onclick=()=>{document.documentElement.classList.toggle('light');store.set('theme',document.documentElement.classList.contains('light')?'light':'dark');};
-  $('#chapterCount').oninput=e=>$('#chapterCountValue').textContent=e.target.value;
-  $('#studyForm').onsubmit=e=>{e.preventDefault();renderStudy(chooseTopic());};
-  $('#saveJournalBtn').onclick=saveJournal; $('#addGroupBtn').onclick=()=>$('#groupDialog').showModal(); $('#createGroupConfirm').onclick=e=>{e.preventDefault();createGroup();};
-  $('#postGroupReflection').onclick=e=>{e.preventDefault();postGroupReflection();}; $('#saveSettingsBtn').onclick=saveSettings;
-  $('#googleLoginBtn').onclick=googleLogin; $('#logoutBtn').onclick=logout;
-}
-
-if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(console.error);
-initTheme(); renderTopics(); renderPaths(); renderGroups(); renderJournal(); bind(); loadFirebase();
+function renderKeywordResults(query=''){const q=query.trim().toLowerCase();if(!q){$('#keywordResults').innerHTML='';return}const found=topics.filter(t=>[t.name,...t.keywords,t.summary,t.today].join(' ').toLowerCase().includes(q));$('#keywordResults').innerHTML=found.length?found.map(t=>`<article class="list-card keyword-result"><div><b>${esc(t.verse)} · ${esc(t.name)}</b><p>${esc(t.quote)}</p></div><button class="text-btn use-keyword" data-topic="${t.id}">Odpri →</button></article>`).join(''):`<p class="empty-state">Za »${esc(query)}« ni pripravljenega zadetka. Poskusi: vera, mir, upanje, ljubezen ali odpuščanje.</p>`}
+function pathState(){return store.get('pathProgress',{})}
+function renderPaths(){const progress=pathState();$('#pathsList').innerHTML=paths.map(p=>{const done=Math.min(progress[p.id]||0,p.days.length),pct=Math.round(done/p.days.length*100),next=p.days[done]||'Pot zaključena';return `<article class="list-card"><div class="section-heading"><div><h3>${esc(p.title)}</h3><p class="muted">${esc(p.desc)}</p></div><span class="pill">${done}/${p.days.length}</span></div><div class="progress"><span style="width:${pct}%"></span></div><p><b>${done<p.days.length?'Naslednje branje':'Zaključeno'}:</b> ${esc(next)}</p><button class="primary path-step" data-path="${p.id}">${done?'Označi naslednji dan':'Začni pot'}</button><button class="text-btn path-reset" data-path="${p.id}">Ponastavi</button></article>`}).join('');renderContinue()}
+function renderContinue(){const progress=pathState();const active=store.get('activePath',null);const p=paths.find(x=>x.id===active);if(!p){$('#continuePill').textContent='Ni začete poti';$('#continueTitle').textContent='Izberi bralno pot';$('#continueText').textContent='Začni v razdelku Moje poti.';$('#continueProgress').style.width='0%';return}const done=Math.min(progress[p.id]||0,p.days.length),pct=Math.round(done/p.days.length*100);$('#continuePill').textContent=`${done}. dan od ${p.days.length}`;$('#continueTitle').textContent=p.title;$('#continueText').textContent=done<p.days.length?`Naslednje: ${p.days[done]}`:'Pot je zaključena.';$('#continueProgress').style.width=`${pct}%`}
+function renderJournal(){const a=store.get('journal',[]);$('#journalEntries').innerHTML=a.length?a.map((e,i)=>`<article class="list-card"><div class="section-heading"><div><h3>${esc(e.title)}</h3><p class="muted">${new Date(e.date).toLocaleString('sl-SI')}</p></div><button class="icon-btn delete-journal" data-i="${i}">×</button></div><p>${esc(e.text).replace(/\n/g,'<br>')}</p>${e.prayer?`<p><b>Moja molitev:</b><br>${esc(e.prayer).replace(/\n/g,'<br>')}</p>`:''}</article>`).join(''):'<p class="empty-state">Še nimaš shranjenih zapisov.</p>'}
+function saveJournal(){const e={title:$('#journalTitle').value.trim()||'Moje razmišljanje',text:$('#journalText').value.trim(),prayer:$('#prayerText').value.trim(),date:new Date().toISOString()};if(!e.text&&!e.prayer){toast('Vnesi zapis ali molitev.');return}const a=store.get('journal',[]);a.unshift(e);store.set('journal',a);renderJournal();$('#journalTitle').value=$('#journalText').value=$('#prayerText').value='';syncUserData();toast('Zapis je shranjen.')}
+function renderGroups(){$('#groupsList').innerHTML='<p class="empty-state">Prijavi se z Googlom za sinhronizirane skupine.</p>'}
+function setSync(s){$('#syncStatus').textContent=s;$('#lastSync').textContent=new Date().toLocaleString('sl-SI')}
+async function loadFirebase(){const c=window.MOJABESEDA_FIREBASE_CONFIG;if(!c?.apiKey){setSync('Lokalno');return}try{const [a,au,d]=await Promise.all([import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)]);const app=a.initializeApp(c),auth=au.getAuth(app),db=d.getFirestore(app);state.firebase={auth,db,...au,...d};await au.getRedirectResult(auth).catch(()=>null);au.onAuthStateChanged(auth,onAuth);setSync('Firebase pripravljen')}catch(e){console.error(e);setSync('Napaka povezave')}}
+async function googleLogin(){if(!state.firebase){toast('Firebase povezava ni pripravljena.');return}const {auth,GoogleAuthProvider,signInWithPopup,signInWithRedirect}=state.firebase;const p=new GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});try{await signInWithPopup(auth,p)}catch(e){if(['auth/popup-blocked','auth/cancelled-popup-request','auth/operation-not-supported-in-this-environment'].includes(e.code))await signInWithRedirect(auth,p);else{console.error(e);toast(`Prijava ni uspela: ${e.code||'neznana napaka'}`)}}}
+async function onAuth(u){state.user=u;$('#googleLoginBtn').classList.toggle('hidden',!!u);$('#logoutBtn').classList.toggle('hidden',!u);$('#profileName').textContent=u?.displayName||'Gostujoči uporabnik';$('#profileEmail').textContent=u?.email||'Lokalni način';$('#profileBtn').textContent=u?(u.displayName||'MB').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase():'DG';$('#accountStatus').textContent=u?'Prijavljen':'Neprijavljen';if(u){await syncUserData();await loadUserData();setSync('Sinhronizirano')}else setSync('Lokalno')}
+async function syncUserData(){if(!state.user||!state.firebase)return;const {db,doc,setDoc,serverTimestamp}=state.firebase;await setDoc(doc(db,'users',state.user.uid),{uid:state.user.uid,email:state.user.email||'',displayName:state.user.displayName||'',pathProgress:pathState(),activePath:store.get('activePath',null),journal:store.get('journal',[]),updatedAt:serverTimestamp()},{merge:true})}
+async function loadUserData(){if(!state.user||!state.firebase)return;const {db,doc,getDoc}=state.firebase;const s=await getDoc(doc(db,'users',state.user.uid));if(s.exists()){const d=s.data();if(d.pathProgress)store.set('pathProgress',d.pathProgress);if(d.activePath)store.set('activePath',d.activePath);if(Array.isArray(d.journal))store.set('journal',d.journal);renderPaths();renderJournal()}}
+function bind(){document.addEventListener('click',async e=>{const n=e.target.closest('[data-nav]');if(n)nav(n.dataset.nav);if(e.target.closest('#profileBtn'))nav('profile');if(e.target.closest('#dailySpeakBtn'))speak(`${$('#dailyTitle').textContent}. ${$('#dailyVerse').textContent}. ${$('#dailyReference').textContent}`);if(e.target.closest('#dailyStopBtn'))stopSpeak();if(e.target.closest('#studySpeakBtn'))speak($('#studyResult').innerText);if(e.target.closest('#studyToJournal')){nav('journal');$('#journalTitle').value=`Razmišljanje: ${$('#studyResult h2')?.textContent||''}`};const k=e.target.closest('.use-keyword');if(k){const t=topics.find(x=>x.id===k.dataset.topic);$('#topicSelect').value=t.id;nav('study');renderStudy(t)}const ps=e.target.closest('.path-step');if(ps){const p=paths.find(x=>x.id===ps.dataset.path),pr=pathState();pr[p.id]=Math.min((pr[p.id]||0)+1,p.days.length);store.set('pathProgress',pr);store.set('activePath',p.id);renderPaths();await syncUserData();toast('Napredek poti je shranjen.')}const pr=e.target.closest('.path-reset');if(pr){const x=pathState();x[pr.dataset.path]=0;store.set('pathProgress',x);renderPaths();await syncUserData()}const dj=e.target.closest('.delete-journal');if(dj){const a=store.get('journal',[]);a.splice(Number(dj.dataset.i),1);store.set('journal',a);renderJournal();await syncUserData()}});$('#themeToggle').onclick=()=>{document.documentElement.classList.toggle('light');store.set('theme',document.documentElement.classList.contains('light')?'light':'dark')};$('#chapterCount').oninput=e=>$('#chapterCountValue').textContent=e.target.value;$('#studyForm').onsubmit=e=>{e.preventDefault();renderStudy(chooseTopic())};$('#keywordSearchBtn').onclick=()=>renderKeywordResults($('#keywordSearch').value);$('#keywordSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();renderKeywordResults(e.target.value)}};$('#saveJournalBtn').onclick=saveJournal;$('#googleLoginBtn').onclick=googleLogin;$('#logoutBtn').onclick=()=>state.firebase?.signOut(state.firebase.auth);$('#addGroupBtn').onclick=()=>$('#groupDialog').showModal();$('#createGroupConfirm').onclick=e=>{e.preventDefault();toast('Skupine bodo na voljo po prijavi in potrjeni Firestore povezavi.');$('#groupDialog').close()}}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error);
+initTheme();renderTopics();renderPaths();renderJournal();renderGroups();bind();loadFirebase();

@@ -1,112 +1,143 @@
 <!doctype html>
 <html lang="sl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#111315" />
-  <meta name="description" content="MojaBeseda – osebno in skupinsko svetopisemsko razmišljanje." />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1422">
+  <meta name="description" content="MojaBeseda – osebno in skupinsko svetopisemsko razmišljanje.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
   <title>MojaBeseda</title>
 </head>
 <body>
-  <div id="app" class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">DG Smart app</p>
-        <h1>MojaBeseda</h1>
-      </div>
-      <div class="top-actions">
-        <button id="themeToggle" class="icon-btn" aria-label="Preklopi videz">◐</button>
-        <button id="profileBtn" class="avatar-btn" aria-label="Profil">DG</button>
-      </div>
-    </header>
+<div id="app" class="app-shell">
+  <header class="topbar">
+    <div><h1>MojaBeseda</h1></div>
+    <div class="top-actions">
+      <button id="themeToggle" class="icon-btn" aria-label="Preklopi videz">◐</button>
+      <button id="profileBtn" class="avatar-btn" aria-label="Profil">DG</button>
+    </div>
+  </header>
 
-    <main>
-      <section id="homeView" class="view active">
-        <article class="hero-card">
-          <div class="hero-copy">
-            <p class="eyebrow">Današnja Beseda</p>
-            <h2 id="dailyTitle">Ljubezen, ki ostane</h2>
-            <p id="dailyVerse">»Zdaj pa ostanejo vera, upanje, ljubezen, to troje. In največja od teh je ljubezen.«</p>
-            <p class="reference">1 Korinčanom 13,13</p>
-          </div>
-          <div class="hero-actions">
-            <button class="primary" data-action="new-study">Novo razmišljanje</button>
-            <button class="secondary speak-btn" data-speak-target="#dailyVerse">▶ Poslušaj</button>
-          </div>
+  <main>
+    <section id="homeView" class="view active">
+      <article class="hero-card">
+        <p class="eyebrow">Današnja Beseda</p>
+        <h2 id="dailyTitle">Ljubezen, ki ostane</h2>
+        <p id="dailyVerse">»Zdaj pa ostanejo vera, upanje, ljubezen, to troje. In največja od teh je ljubezen.«</p>
+        <p id="dailyReference" class="reference">1 Korinčanom 13,13</p>
+        <div class="hero-actions">
+          <button class="primary" data-nav="study">Novo razmišljanje</button>
+          <button id="dailySpeakBtn" class="secondary">▶ Poslušaj</button>
+          <button id="dailyStopBtn" class="secondary">■ Ustavi</button>
+        </div>
+      </article>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div><p class="eyebrow">Nadaljuj</p><h3>Tvoja zadnja pot</h3></div>
+          <span id="continuePill" class="pill">Ni začete poti</span>
+        </div>
+        <article id="continueCard" class="progress-card">
+          <div><h4 id="continueTitle">Izberi bralno pot</h4><p id="continueText" class="muted">Začni v razdelku Moje poti.</p></div>
+          <div class="progress"><span id="continueProgress" style="width:0%"></span></div>
+          <button id="continueBtn" class="text-btn" data-nav="paths">Odpri poti →</button>
         </article>
-
-        <section class="quick-grid">
-          <button class="quick-card" data-nav="study"><span>✦</span><b>Novo razmišljanje</b><small>Izberi temo ali naključni izbor</small></button>
-          <button class="quick-card" data-nav="paths"><span>↗</span><b>Moje poti</b><small>Vodeni načrti skozi Sveto pismo</small></button>
-          <button class="quick-card" data-nav="groups"><span>◎</span><b>Skupine</b><small>Skupna razmišljanja in odzivi</small></button>
-          <button class="quick-card" data-nav="journal"><span>⌁</span><b>Dnevnik</b><small>Osebni zapiski in molitev</small></button>
-        </section>
-
-        <section class="section-block">
-          <div class="section-heading"><div><p class="eyebrow">Nadaljuj</p><h3>Tvoja zadnja pot</h3></div><span class="pill">3. dan od 14</span></div>
-          <article class="progress-card">
-            <div><h4>Vera v preizkušnjah</h4><p>Jakob 1 · Rimljanom 5</p></div>
-            <div class="progress"><span style="width:21%"></span></div>
-            <button class="text-btn" data-open-study="vera">Nadaljuj →</button>
-          </article>
-        </section>
-
-        <section class="section-block">
-          <div class="section-heading"><div><p class="eyebrow">Ključne besede</p><h3>Dnevna spodbuda</h3></div><button class="text-btn" data-nav="settings">Nastavi</button></div>
-          <div id="keywordChips" class="chip-row"></div>
-        </section>
       </section>
 
-      <section id="studyView" class="view">
-        <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Ustvari</p><h2>Novo razmišljanje</h2></div></div>
-        <form id="studyForm" class="panel form-grid">
-          <label>Tema
-            <select id="topicSelect"></select>
+      <section class="section-block">
+        <div class="section-heading">
+          <div><p class="eyebrow">Ključne besede</p><h3>Dnevna spodbuda</h3></div>
+        </div>
+        <article class="panel keyword-panel">
+          <label for="keywordSearch">Vpiši ključno besedo
+            <div class="search-row">
+              <input id="keywordSearch" placeholder="npr. vera, strah, mir, odpuščanje">
+              <button id="keywordSearchBtn" class="primary" type="button">Poišči</button>
+            </div>
           </label>
-          <label>Način
-            <select id="modeSelect"><option value="topic">Izbrana tema</option><option value="random">Preseneti me</option><option value="covenant">Povezava med zavezama</option></select>
-          </label>
-          <label>Število poglavij
-            <input id="chapterCount" type="range" min="1" max="5" value="2" />
-            <span id="chapterCountValue" class="range-value">2</span>
-          </label>
-          <label>Prevod
-            <select id="translationSelect"><option>SSP</option><option>EKU</option><option>CHR</option></select>
-          </label>
-          <label>Stopnja razlage
-            <select id="depthSelect"><option value="simple">Preprosta</option><option value="deep" selected>Poglobljena</option><option value="group">Za skupino</option><option value="sermon">Za pripravo pridige</option></select>
-          </label>
-          <label>Zaveza
-            <select id="testamentSelect"><option value="both">Obe zavezi</option><option value="old">Stara zaveza</option><option value="new">Nova zaveza</option></select>
-          </label>
-          <button class="primary full" type="submit">Pripravi razmišljanje</button>
-        </form>
-        <div id="studyResult"></div>
+          <div id="keywordResults" class="stack compact-stack"></div>
+        </article>
       </section>
+    </section>
 
-      <section id="pathsView" class="view"><div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Vodeno branje</p><h2>Moje poti</h2></div></div><div id="pathsList" class="stack"></div></section>
-      <section id="groupsView" class="view"><div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Skupaj</p><h2>Skupine</h2></div><button id="addGroupBtn" class="icon-btn">＋</button></div><div id="groupsList" class="stack"></div></section>
-      <section id="journalView" class="view"><div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Zasebno</p><h2>Dnevnik</h2></div></div><div class="panel"><label>Naslov<input id="journalTitle" placeholder="Kaj mi je danes govorilo?" /></label><label>Moj zapis<textarea id="journalText" rows="8" placeholder="Zapiši svoje razmišljanje …"></textarea></label><label>Moja molitev <span class="muted">(vedno zasebno)</span><textarea id="prayerText" rows="5" placeholder="Zapiši svojo molitev iz srca …"></textarea></label><button id="saveJournalBtn" class="primary">Shrani zapis</button></div><div id="journalEntries" class="stack section-block"></div></section>
-      <section id="settingsView" class="view"><div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Nastavitve</p><h2>Dnevna obvestila</h2></div></div><div class="panel form-grid"><label>Ključna beseda<select id="notificationKeyword"></select></label><label>Ura<input id="notificationTime" type="time" value="07:00" /></label><label class="switch-row"><span>Vključi dnevni opomnik</span><input id="notificationEnabled" type="checkbox" checked /></label><button id="saveSettingsBtn" class="primary full">Shrani nastavitve</button><p class="muted full">V tej Spark/PWA različici aplikacija ob odprtju preveri današnjo vsebino. Podprte naprave lahko prikažejo tudi lokalno spletno obvestilo.</p></div></section>
-      <section id="profileView" class="view"><div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Račun</p><h2>Profil</h2></div></div><div class="panel profile-panel"><div class="profile-avatar">DG</div><h3 id="profileName">Gostujoči uporabnik</h3><p id="profileEmail" class="muted">Lokalni način</p><button id="googleLoginBtn" class="primary">Prijava z Googlom</button><button id="logoutBtn" class="secondary hidden">Odjava</button><hr><div class="meta-list"><span>Različica <b>1.2.0</b></span><span>Sinhronizacija <b id="syncStatus">Lokalno</b></span><span>Firebase <b>Spark</b></span></div></div></section>
-    </main>
+    <section id="studyView" class="view">
+      <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Ustvari</p><h2>Novo razmišljanje</h2></div></div>
+      <form id="studyForm" class="panel form-grid">
+        <label>Tema<select id="topicSelect"></select></label>
+        <label>Način<select id="modeSelect"><option value="topic">Izbrana tema</option><option value="random">Preseneti me</option><option value="covenant">Povezava med zavezama</option></select></label>
+        <label>Število poglavij<input id="chapterCount" type="range" min="1" max="5" value="2"><span id="chapterCountValue" class="range-value">2</span></label>
+        <label>Prevod<select id="translationSelect"><option>SSP</option><option>EKU</option><option>CHR</option></select></label>
+        <label>Stopnja razlage<select id="depthSelect"><option value="simple">Preprosta</option><option value="deep" selected>Poglobljena</option><option value="group">Za skupino</option><option value="sermon">Za pripravo pridige</option></select></label>
+        <label>Zaveza<select id="testamentSelect"><option value="both">Obe zavezi</option><option value="old">Stara zaveza</option><option value="new">Nova zaveza</option></select></label>
+        <button class="primary full" type="submit">Pripravi razmišljanje</button>
+      </form>
+      <div id="studyResult"></div>
+    </section>
 
-    <nav class="bottom-nav">
-      <button class="active" data-nav="home">⌂<span>Domov</span></button>
-      <button data-nav="study">✦<span>Beseda</span></button>
-      <button data-nav="paths">↗<span>Poti</span></button>
-      <button data-nav="groups">◎<span>Skupine</span></button>
-      <button data-nav="journal">⌁<span>Dnevnik</span></button>
-    </nav>
-  </div>
-  <div id="toast" class="toast"></div>
-  <dialog id="groupDialog"><form method="dialog" class="dialog-card"><h3>Nova skupina</h3><label>Ime skupine<input id="groupName" placeholder="npr. Moški zajtrk" /></label><label>E-pošta povabljenega<input id="inviteEmail" type="email" placeholder="ime@gmail.com" /></label><div class="dialog-actions"><button value="cancel" class="secondary">Prekliči</button><button id="createGroupConfirm" value="default" class="primary">Ustvari</button></div></form></dialog>
-  <script src="firebase-config.js"></script>
-  <script type="module" src="app.js"></script>
+    <section id="pathsView" class="view">
+      <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Vodeno branje</p><h2>Moje poti</h2></div></div>
+      <div id="pathsList" class="stack"></div>
+    </section>
 
-  <dialog id="groupDetailDialog"><form method="dialog" class="dialog-card group-detail-card"><div class="section-heading"><div><p class="eyebrow">Skupinsko razmišljanje</p><h3 id="groupDetailTitle">Skupina</h3></div><button value="cancel" class="icon-btn" aria-label="Zapri">×</button></div><p id="groupDetailMembers" class="muted"></p><label>Dodaj svoje razmišljanje<textarea id="groupReflectionText" rows="4" placeholder="Kaj te je nagovorilo?"></textarea></label><button id="postGroupReflection" type="button" class="primary">Objavi skupini</button><div id="groupReflections" class="stack section-block"></div></form></dialog>
+    <section id="groupsView" class="view">
+      <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Skupaj</p><h2>Skupine</h2></div><button id="addGroupBtn" class="icon-btn">＋</button></div>
+      <div id="groupsList" class="stack"></div>
+    </section>
+
+    <section id="journalView" class="view">
+      <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Zasebno</p><h2>Dnevnik z Bogom</h2></div></div>
+      <div class="panel">
+        <label>Naslov<input id="journalTitle" placeholder="Kaj mi je danes govorilo?"></label>
+        <label>Moj zapis<textarea id="journalText" rows="7" placeholder="Zapiši svoje razmišljanje …"></textarea></label>
+        <label>Moja molitev <span class="muted">(vedno zasebno)</span><textarea id="prayerText" rows="4" placeholder="Zapiši svojo molitev iz srca …"></textarea></label>
+        <button id="saveJournalBtn" class="primary">Shrani zapis</button>
+      </div>
+      <div id="journalEntries" class="stack section-block"></div>
+    </section>
+
+    <section id="profileView" class="view">
+      <div class="view-header"><button class="back-btn" data-nav="home">←</button><div><p class="eyebrow">Račun</p><h2>Profil</h2></div></div>
+      <div class="panel profile-panel">
+        <div class="profile-avatar">DG</div>
+        <h3 id="profileName">Gostujoči uporabnik</h3>
+        <p id="profileEmail" class="muted">Lokalni način</p>
+        <button id="googleLoginBtn" class="primary">Prijava z Googlom</button>
+        <button id="logoutBtn" class="secondary hidden">Odjava</button>
+      </div>
+
+      <h2 class="about-heading">O aplikaciji</h2>
+      <article class="about-card">
+        <img src="icons/icon-192.png" alt="Ikona MojaBeseda">
+        <div class="about-main">
+          <h3>MojaBeseda by Davor Gričnik</h3>
+          <p>Verzija 1.3.0</p>
+        </div>
+        <p class="about-credit">Designed &amp; Developed by Davor Gričnik © 2026</p>
+      </article>
+
+      <article class="panel status-card">
+        <div><span>Google račun</span><b id="accountStatus">Neprijavljen</b></div>
+        <div><span>Sinhronizacija</span><b id="syncStatus">Lokalno</b></div>
+        <div><span>Zadnja sinhronizacija</span><b id="lastSync">—</b></div>
+      </article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="active" data-nav="home">⌂<span>Domov</span></button>
+    <button data-nav="study">✦<span>Beseda</span></button>
+    <button data-nav="paths">↗<span>Poti</span></button>
+    <button data-nav="groups">◎<span>Skupine</span></button>
+    <button data-nav="journal">⌁<span>Dnevnik</span></button>
+  </nav>
+</div>
+
+<div id="toast" class="toast"></div>
+<dialog id="groupDialog"><form method="dialog" class="dialog-card"><h3>Nova skupina</h3><label>Ime skupine<input id="groupName" placeholder="npr. Moški zajtrk"></label><label>E-pošta povabljenega<input id="inviteEmail" type="email" placeholder="ime@gmail.com"></label><div class="dialog-actions"><button value="cancel" class="secondary">Prekliči</button><button id="createGroupConfirm" value="default" class="primary">Ustvari</button></div></form></dialog>
+<script src="firebase-config.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
